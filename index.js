@@ -176,32 +176,30 @@ const countInString = (needle = '', haystack = '') => {
 };
 
 const findAnswerOccurrences = data => {
-  const html = data.html.toLowerCase();
+  const html = data.html;
+
+  const sanitiseOption = option => {
+    return removePunctuation(option)
+      .replace(/\s+/, ' ')
+      .trim();
+  };
+
   // TODO more WET code here
-  const option1 = removePunctuation(data.question.option1)
-    .replace(/\s+/, ' ')
-    .trim();
-  let option1Occurrences = html.split(option1).length - 1;
+  const option1 = sanitiseOption(data.question.option1);
+  let option1Occurrences = countInString(option1, html);
   option1.split(' ').forEach(part => {
-    part = part.toLowerCase();
     option1Occurrences += countInString(part, html);
   });
 
-  const option2 = removePunctuation(data.question.option2)
-    .replace(/\s+/, ' ')
-    .trim();
-  let option2Occurrences = html.split(option2).length - 1;
+  const option2 = sanitiseOption(data.question.option2);
+  let option2Occurrences = countInString(option2, html);
   option2.split(' ').forEach(part => {
-    part = part.toLowerCase();
     option2Occurrences += countInString(part, html);
   });
 
-  const option3 = removePunctuation(data.question.option3)
-    .replace(/\s+/, ' ')
-    .trim();
-  let option3Occurrences = html.split(option3).length - 1;
+  const option3 = sanitiseOption(data.question.option3);
+  let option3Occurrences = countInString(option3, html);
   option3.split(' ').forEach(part => {
-    part = part.toLowerCase();
     option3Occurrences += countInString(part, html);
   });
 
