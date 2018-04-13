@@ -8,8 +8,9 @@ if (!fs.existsSync('eng.traineddata')) {
   console.log('No language data present, download some from here:');
   console.log('https://github.com/tesseract-ocr/tessdata');
   console.log('');
+  console.log('Hint; run this:');
   console.log(
-    "Hint, run this: curl -L 'https://github.com/tesseract-ocr/tessdata/raw/master/eng.traineddata' > eng.traineddata",
+    "curl -L 'https://github.com/tesseract-ocr/tessdata/raw/master/eng.traineddata' > eng.traineddata",
   );
   console.log('');
   process.exit(1);
@@ -44,7 +45,7 @@ const getTrainingImage = () => {
 };
 
 /**
- * TODO readQuestion, readOption1, readOption2 and readOption3 need DRYing
+ * TODO WET code
  */
 const readQuestion = imagePath => {
   return new Promise((resolve, reject) => {
@@ -64,6 +65,9 @@ const readQuestion = imagePath => {
   });
 };
 
+/**
+ * TODO WET code
+ */
 const readOption1 = imagePath => {
   return new Promise((resolve, reject) => {
     easyimage
@@ -84,6 +88,9 @@ const readOption1 = imagePath => {
   });
 };
 
+/**
+ * TODO WET code
+ */
 const readOption2 = imagePath => {
   return new Promise((resolve, reject) => {
     easyimage
@@ -104,6 +111,9 @@ const readOption2 = imagePath => {
   });
 };
 
+/**
+ * TODO WET code
+ */
 const readOption3 = imagePath => {
   return new Promise((resolve, reject) => {
     easyimage
@@ -124,10 +134,18 @@ const readOption3 = imagePath => {
   });
 };
 
+const removePunctuation = string => {
+  return string.replace(/[^a-zA-Z\s\d]/g, ' ');
+};
+
 const search = question => {
   return new Promise((resolve, reject) => {
-    const text = question.text.replace('NOT', '').replace(/\s+/g, ' ');
-    google(question.text, (error, response) => {
+    const text = removePunctuation(question.text.replace('NOT', '')).replace(
+      /\s+/g,
+      ' ',
+    );
+
+    google(text, (error, response) => {
       if (error) {
         reject(error);
       }
@@ -144,30 +162,47 @@ const search = question => {
   });
 };
 
+const countInString = (needle = '', haystack = '') => {
+  needle = String(needle);
+  haystack = String(haystack);
+
+  const re = new RegExp(needle, 'gim');
+
+  try {
+    return haystack.match(re).length;
+  } catch (error) {
+    return 0;
+  }
+};
+
 const findAnswerOccurrences = data => {
+  const html = data.html.toLowerCase();
   // TODO more WET code here
-  const option1 = data.question.option1
-    .replace(/[^a-zA-Z\s\d]/g, ' ')
-    .replace(/\s+/, ' ');
-  let option1Occurrences = data.html.split(option1).length - 1;
-  option1.split('').forEach(part => {
-    option1Occurrences += data.html.split(part).length - 1;
+  const option1 = removePunctuation(data.question.option1)
+    .replace(/\s+/, ' ')
+    .trim();
+  let option1Occurrences = html.split(option1).length - 1;
+  option1.split(' ').forEach(part => {
+    part = part.toLowerCase();
+    option1Occurrences += countInString(part, html);
   });
 
-  const option2 = data.question.option2
-    .replace(/[^a-zA-Z\s\d]/g, ' ')
-    .replace(/\s+/, ' ');
-  let option2Occurrences = data.html.split(option2).length - 1;
-  option2.split('').forEach(part => {
-    option2Occurrences += data.html.split(part).length - 1;
+  const option2 = removePunctuation(data.question.option2)
+    .replace(/\s+/, ' ')
+    .trim();
+  let option2Occurrences = html.split(option2).length - 1;
+  option2.split(' ').forEach(part => {
+    part = part.toLowerCase();
+    option2Occurrences += countInString(part, html);
   });
 
-  const option3 = data.question.option3
-    .replace(/[^a-zA-Z\s\d]/g, ' ')
-    .replace(/\s+/, ' ');
-  let option3Occurrences = data.html.split(option3).length - 1;
-  option3.split('').forEach(part => {
-    option3Occurrences += data.html.split(part).length - 1;
+  const option3 = removePunctuation(data.question.option3)
+    .replace(/\s+/, ' ')
+    .trim();
+  let option3Occurrences = html.split(option3).length - 1;
+  option3.split(' ').forEach(part => {
+    part = part.toLowerCase();
+    option3Occurrences += countInString(part, html);
   });
 
   return {
@@ -181,21 +216,29 @@ const findAnswerOccurrences = data => {
 };
 
 const report = results => {
-  // console.log('results =', results);
-  let answers = results.answers.sort((a, b) => {
+  let answers = results.answers;
+
+  console.log('');
+  console.log(`Question: ${results.question}`);
+  console.log(
+    `Option 1: ${results.answers[0].text} (${results.answers[0].occurrences})`,
+  );
+  console.log(
+    `Option 2: ${results.answers[1].text} (${results.answers[1].occurrences})`,
+  );
+  console.log(
+    `Option 3: ${results.answers[2].text} (${results.answers[2].occurrences})`,
+  );
+
+  answers = answers.sort((a, b) => {
     if (a.occurrences < b.occurrences) return 1;
-    if (a.occurrences > b.occurrences) return -1;
     if (a.occurrences === b.occurrences) return 0;
+    if (a.occurrences > b.occurrences) return -1;
   });
 
-  if (results.question.indexOf('NOT') > 0) {
+  if (results.question.indexOf(' NOT ') > 0) {
     answers = answers.reverse();
   }
-
-  console.log('Question:', results.question);
-  console.log('Option 1:', results.answers[0].text);
-  console.log('Option 2:', results.answers[1].text);
-  console.log('Option 3:', results.answers[2].text);
 
   console.log('');
   console.log(`I think the answer is: ${answers[0].text}`);
@@ -211,17 +254,18 @@ const report = results => {
 getTrainingImage()
   .then(imagePath => {
     return new Promise((resolve, reject) => {
+      // Read all texts in parallel
       Promise.all([
         readQuestion(imagePath),
         readOption1(imagePath),
         readOption2(imagePath),
         readOption3(imagePath),
-      ]).then(values => {
+      ]).then(texts => {
         resolve({
-          text: values[0],
-          option1: values[1],
-          option2: values[2],
-          option3: values[3],
+          text: texts[0],
+          option1: texts[1],
+          option2: texts[2],
+          option3: texts[3],
         });
       });
     });
